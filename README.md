@@ -17,7 +17,8 @@ ai-scheduler/
 │   └── pages/
 │       └── api/
 │           ├── splitTasks.ts   # POST エンドポイント: todo リストをタスク配列へ変換
-│           └── schedule.ts     # POST エンドポイント: タスクを Google カレンダーへ登録
+│           ├── schedule.ts     # POST エンドポイント: タスクを Google カレンダーへ登録
+│           └── report.ts       # POST エンドポイント: 完了したタスクから日報を生成
 └── README.md             # このファイル
 ```
 
@@ -50,8 +51,9 @@ ai-scheduler/
 
    - `POST /api/splitTasks` : ボディに `input` プロパティを含めると、OpenAI に送信してタスク配列を返します。
    - `POST /api/schedule` : ボディに `tokens`（Google OAuth トークン）と `tasks`（タスク配列）を含めると、そのタスクを Google カレンダーへ登録します。
+   - `POST /api/report` : ボディに `tasks`（完了したタスク一覧）を含めると、日報サマリーを生成して返します。
 
-   フロントエンドではテキストエリアに貼り付けた todo リストを `/api/splitTasks` に送信し、返ってきたタスクを `/api/schedule` へ送ることで自動的にカレンダーに登録することができます。
+   フロントエンドではテキストエリアに貼り付けた todo リストを `/api/splitTasks` に送信し、返ってきたタスクを `/api/schedule` へ送ることで自動的にカレンダーに登録できます。完了したタスクを `/api/report` に送ることで、その日の活動サマリーを生成することも可能です。
 
 5. **Google Calendar Watch 関数**
 
