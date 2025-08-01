@@ -1,71 +1,68 @@
-/**
- * src/lib/ai.ts
- * ----------------------------------------
- * OpenAI Function Calling を使って
- * 文字列の TODO リストを構造化タスク配列に変換します。
+/*
+ * ai.ts
+ *
+ * OpenAI GPT-4o (function calling) を利用して、ユーザーが入力した todo リストを実行可能な
+ * タスクへ分解するためのユーティリティ関数です。Next.js の API Routes から呼び出すことを想定しています。
  */
 
-import { Configuration, OpenAIApi } from 'openai';
+import { OpenAIApi, Configuration } from 'openai';
 
-/* ---------- 型定義 ---------- */
-export interface Task {
-  title: string;
-  duration_min: number;
-  priority: number;
-}
-
-/* ---------- OpenAI クライアント ---------- */
+// OpenAI API の初期化
 const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY, // .env.local に設定
+  apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
 
-/* ---------- メイン関数 ---------- */
-/**
- * @param input ユーザーが入力した TODO リスト文字列
- * @returns OpenAI が返す構造化タスク配列
- */
-export async function splitTasks(input: string): Promise<Task[]> {
-  // Function Calling 用 JSON Schema
-  const functionSchema = {
-    name: 'split_tasks',
-    description: 'Break a todo list into executable tasks',
-    parameters: {
-      type: 'object',
-      properties: {
-        tasks: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              duration_min: { type: 'integer' },
-              priority: { type: 'integer' },
-            },
-            required: ['title', 'duration_min'],
+// JSON Schema 定義: todo リストを分解したタスクの形式
+const taskSplitFn = {
+  name: 'split_tasks',
+  description: 'Break a todo list into executable tasks',
+  parameters: {
+    type: 'object',
+    properties: {
+      tasks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            duration_min: { type: 'integer' },
+            priority: { type: 'integer' },
           },
+          required: ['title', 'duration_min'],
         },
       },
-      required: ['tasks'],
     },
-  };
+    required: ['tasks'],
+  },
+} as const;
 
-  // Chat Completion
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini', // 必要に応じて変更
-    messages: [{ role: 'user', content: input }],
-    functions: [functionSchema],
+export interface Task {
+  title: string;
+  duration_min: number;
+  priority?: number;
+  deadline?: string;
+}
+
+/**
+ * ユーザーの入力文字列を OpenAI API に送り、タスクを分解して返します。
+ * @param input Text area に入力された todo リスト
+ */
+export async function splitTasks(input: string): Promise<Task[]> {
+  const res = await openai.createChatCompletion({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'user', content: input },
+    ],
+    functions: [taskSplitFn],
     function_call: { name: 'split_tasks' },
   });
 
-  // 引数をパース
-  const raw = completion.choices[0].message?.function_call?.arguments ?? '{}';
-
-  try {
-    const parsed = JSON.parse(raw) as { tasks?: Task[] };
-    return Array.isArray(parsed.tasks) ? parsed.tasks : [];
-  } catch {
-    // パース失敗時は空配列を返す
-    return [];
+  const choice = res.data.choices?.[0];
+  if (!choice || choice.finish_reason !== 'function_call') {
+    throw new Error('OpenAI did not return a function call');
   }
+
+  const args = JSON.parse(choice.message?.function_call?.arguments ?? '{}') as { tasks: Task[] };
+  return args.tasks;
 }

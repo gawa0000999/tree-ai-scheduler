@@ -11,9 +11,13 @@ ai-scheduler/
 │   └── functions/
 │       └── webhook.ts    # Google Calendar watch の通知を処理するサーバーサイド関数
 ├── src/
-│   └── lib/
-│       ├── ai.ts         # OpenAI API を用いて todo リストをタスクに分解する関数
-│       └── gcal.ts       # Google Calendar へイベントを書き込むユーティリティ関数
+│   ├── lib/
+│   │   ├── ai.ts               # OpenAI API を用いて todo リストをタスクに分解する関数
+│   │   └── gcal.ts             # Google Calendar へイベントを書き込むユーティリティ関数
+│   └── pages/
+│       └── api/
+│           ├── splitTasks.ts   # POST エンドポイント: todo リストをタスク配列へ変換
+│           └── schedule.ts     # POST エンドポイント: タスクを Google カレンダーへ登録
 └── README.md             # このファイル
 ```
 
@@ -42,7 +46,12 @@ ai-scheduler/
 
 4. **実装を Next.js に統合**
 
-   `src/lib/ai.ts` と `src/lib/gcal.ts` に示した関数は、Next.js の API Routes やフロントエンドの呼び出しロジックに組み込むことを想定しています。必要に応じて `app/(dashboard)/` や `pages/api/` 配下に API ハンドラーを追加し、ユーザーの todo 入力やタスクの登録を行ってください。
+   `src/lib/ai.ts` と `src/lib/gcal.ts` に示したユーティリティ関数は、Next.js の API Routes から利用できます。既にサンプル実装として次の API エンドポイントを用意しています。
+
+   - `POST /api/splitTasks` : ボディに `input` プロパティを含めると、OpenAI に送信してタスク配列を返します。
+   - `POST /api/schedule` : ボディに `tokens`（Google OAuth トークン）と `tasks`（タスク配列）を含めると、そのタスクを Google カレンダーへ登録します。
+
+   フロントエンドではテキストエリアに貼り付けた todo リストを `/api/splitTasks` に送信し、返ってきたタスクを `/api/schedule` へ送ることで自動的にカレンダーに登録することができます。
 
 5. **Google Calendar Watch 関数**
 
